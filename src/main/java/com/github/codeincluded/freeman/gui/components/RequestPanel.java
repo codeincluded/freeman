@@ -18,7 +18,12 @@ public class RequestPanel extends JPanel {
         this.httpClient = simpleHttpClient;
         setLayout(new BorderLayout());
 
-        add(new UrlPanel(this::sendRequest, this::setResponse, this::setError), BorderLayout.NORTH);
+        JPanel requestConfig = new JPanel();
+        requestConfig.setLayout(new BoxLayout(requestConfig, BoxLayout.Y_AXIS));
+        requestConfig.add(new UrlPanel(this::sendRequest, this::setResponse, this::setError));
+        requestConfig.add(new RequestDetailsPanel());
+        add(requestConfig, BorderLayout.NORTH);
+
         add(new JScrollPane(textPane), BorderLayout.CENTER);
     }
 
