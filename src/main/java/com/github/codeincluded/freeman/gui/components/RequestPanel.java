@@ -18,13 +18,18 @@ public class RequestPanel extends JPanel {
         this.httpClient = simpleHttpClient;
         setLayout(new BorderLayout());
 
-        JPanel requestConfig = new JPanel();
+        var requestConfig = new JPanel();
         requestConfig.setLayout(new BoxLayout(requestConfig, BoxLayout.Y_AXIS));
         requestConfig.add(new UrlPanel(this::sendRequest, this::setResponse, this::setError));
         requestConfig.add(new RequestDetailsPanel());
-        add(requestConfig, BorderLayout.NORTH);
 
-        add(new JScrollPane(textPane), BorderLayout.CENTER);
+        var splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+        splitPane.add(requestConfig);
+        splitPane.add(new JScrollPane(textPane));
+
+        add(splitPane);
+
+        splitPane.setDividerLocation(160);
     }
 
     @SneakyThrows
