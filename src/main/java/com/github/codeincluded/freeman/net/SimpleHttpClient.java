@@ -1,5 +1,8 @@
 package com.github.codeincluded.freeman.net;
 
+import com.github.codeincluded.freeman.data.Request;
+import com.github.codeincluded.freeman.data.Response;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -9,11 +12,13 @@ import java.time.Duration;
 
 public class SimpleHttpClient {
 
-    public HttpResponse<String> doGet(String url) throws IOException, InterruptedException {
-        var request = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .timeout(Duration.ofSeconds(10))
-                .build();
+    public Response send(Request request) throws IOException, InterruptedException {
+        var httpRequestBuilder = HttpRequest.newBuilder()
+                .method(request.getMethod(), HttpRequest.BodyPublishers.ofString(request.getBody()))
+                .uri(URI.create(request.getUrl()))
+                .timeout(Duration.ofSeconds(10));
+
+        request.getHeaders().forEach(httpRequestBuilder::setHeader);
 
         var client = HttpClient.newBuilder()
                 .version(HttpClient.Version.HTTP_1_1)
@@ -21,6 +26,11 @@ public class SimpleHttpClient {
                 .connectTimeout(Duration.ofSeconds(10))
                 .build();
 
-        return client.send(request, HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> httpResponse = client.send(
+                httpRequestBuilder.build(),
+                HttpResponse.BodyHandlers.ofString()
+        );
+
+        return Response.builder().body(httpResponse.body()).build();
     }
 }

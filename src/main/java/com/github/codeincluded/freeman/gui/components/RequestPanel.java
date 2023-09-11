@@ -3,16 +3,19 @@ package com.github.codeincluded.freeman.gui.components;
 import com.github.codeincluded.freeman.data.Request;
 import com.github.codeincluded.freeman.data.Response;
 import com.github.codeincluded.freeman.net.SimpleHttpClient;
-import lombok.SneakyThrows;
 
 import javax.swing.*;
 import java.awt.*;
-import java.net.http.HttpResponse;
+import java.util.concurrent.ExecutionException;
 
 public class RequestPanel extends JPanel {
 
-    private final JTextPane textPane = new JTextPane();
+    private static final int DEFAULT_DIVIDER_LOCATION = 160;
+
+    private final JTextPane responseTextPane = new JTextPane();
     private final SimpleHttpClient httpClient;
+    private final UrlPanel urlPanel;
+    private final RequestDetailsPanel requestDetailsPanel = new RequestDetailsPanel();
 
     public RequestPanel(SimpleHttpClient simpleHttpClient) {
         this.httpClient = simpleHttpClient;
@@ -20,31 +23,57 @@ public class RequestPanel extends JPanel {
 
         var requestConfig = new JPanel();
         requestConfig.setLayout(new BoxLayout(requestConfig, BoxLayout.Y_AXIS));
-        requestConfig.add(new UrlPanel(this::sendRequest, this::setResponse, this::setError));
-        requestConfig.add(new RequestDetailsPanel());
+        urlPanel = new UrlPanel(this::sendRequest);
+        requestConfig.add(urlPanel);
+        requestConfig.add(requestDetailsPanel);
 
         var splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
         splitPane.add(requestConfig);
-        splitPane.add(new JScrollPane(textPane));
+        splitPane.add(new JScrollPane(responseTextPane));
 
         add(splitPane);
 
-        splitPane.setDividerLocation(160);
+        splitPane.setDividerLocation(DEFAULT_DIVIDER_LOCATION);
     }
 
-    @SneakyThrows
-    private Response sendRequest(Request request) {
-        HttpResponse<String> httpResponse = httpClient.doGet(request.getUrl());
-        return Response.builder()
-                .body(httpResponse.body())
-                .build();
-    }
+    private void sendRequest() {
+        urlPanel.setSendButtonEnabled(false);
 
-    private void setResponse(Response response) {
-        textPane.setText(response.getBody());
-    }
+        SwingWorker<Response, Void> worker = new SwingWorker<>() {
+            @Override
+            protected Response doInBackground() {
+                try {
+                    return httpClient.send(Request.builder()
+                            .method(urlPanel.getHttpMethod())
+                            .url(urlPanel.getUrl())
+                            .body(requestDetailsPanel.getRequestBody())
+                            .headers(requestDetailsPanel.getRequestHeaders())
+                            .build());
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                } finally {
+                    urlPanel.setSendButtonEnabled(true);
+                }
+            }
 
-    private void setError(Throwable throwable) {
-        // nothing here yet
+            @Override
+            protected void done() {
+                try {
+                    responseTextPane.setText(get().getBody());
+                } catch (InterruptedException | ExecutionException e) {
+                    // TODO consider more user friendly approach
+                    JOptionPane.showMessageDialog(
+                            RequestPanel.this,
+                            "Failed to send request",
+                            "Error",
+                            JOptionPane.ERROR_MESSAGE
+                    );
+                } finally {
+                    urlPanel.setSendButtonEnabled(true);
+                }
+            }
+        };
+
+        worker.execute();
     }
 }
